@@ -13,28 +13,46 @@ use Yii;
 use yii\base\Component;
 use yii\base\InvalidConfigException;
 use yii\caching\Cache;
+use yii\di\Instance;
 
 class IpComponent extends Component
 {
-    public $enableCache = true;
-    public $cache;
-    public $cacheKey = 'taobao_ip_api';
-    public $cacheDuration = 86400;
     /**
+     * 缓存组件，默认关闭缓存，需要打开缓存请传入缓存组件名，框架默认为`cache`
      * @var \yii\caching\Cache
      */
-    private $_cache;
-    private $_url = 'http://ip.taobao.com/service/getIpInfo.php?ip=';
+    public $cache;
+
+    /**
+     * 缓存时的前缀Key
+     * @var string
+     */
+    public $cacheKey = 'taobao_ip_api';
+
+    /**
+     * 单个IP缓存有效期，默认为1天
+     * @var int
+     */
+    public $cacheDuration = 86400;
+
+    /**
+     * 淘宝API地址
+     * @var string
+     */
+    protected $_url = 'http://ip.taobao.com/service/getIpInfo.php?ip=';
+
+    /**
+     * 初始化组件，检查参数
+     * @throws InvalidConfigException
+     */
 
     public function init()
     {
         parent::init();
-        if ($this->cache === null) {
-            $this->_cache = Yii::$app->cache;
-        } else {
-            $this->_cache = Yii::$app->get($this->cache);
+        if ($this->cache !== null) {
+            $this->cache = Instance::ensure($this->cache, Cache::className());
         }
-        if (!$this->_cache instanceof Cache) {
+        if ($this->cache !== null && !$this->cache instanceof Cache) {
             throw new InvalidConfigException("cache must be extends \\yii\\caching\\Cache");
         }
     }
@@ -48,9 +66,9 @@ class IpComponent extends Component
     public function get($ip = null)
     {
         $ip = $ip === null ? Yii::$app->request->userIP : $ip;
-        $cacheKey = $this->cacheKey . $ip;
         $ipData = new IpData();
-        if ($this->enableCache && $json = $this->_cache->get($cacheKey)) {
+        $cacheKey = $this->getCacheKey($ip);
+        if ($this->cache !== null && $json = $this->cache->get($cacheKey)) {
             $ipData->setAttributes(json_decode($json, true), false);
             return $ipData;
         }
@@ -63,8 +81,19 @@ class IpComponent extends Component
         }
         if ($result && $result['code'] == 0) {
             $ipData->setAttributes($result['data'], false);
-            $this->enableCache && $this->_cache->set($cacheKey, json_encode($ipData), $this->cacheDuration);
+            $this->cache !== null && $this->cache->set($cacheKey, json_encode($ipData), $this->cacheDuration);
         }
         return $ipData;
+    }
+
+    /**
+     * 通过IP获取缓存的Key
+     * @param $ip
+     * @return string
+     */
+
+    protected function getCacheKey($ip)
+    {
+        return $cacheKey = $this->cacheKey . $ip;
     }
 }
