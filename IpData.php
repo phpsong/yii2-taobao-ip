@@ -6,7 +6,7 @@
  * Time: 10:13
  */
 
-namespace api\taobao;
+namespace iit\api\taobao;
 
 
 use yii\base\Model;

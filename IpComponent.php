@@ -6,7 +6,7 @@
  * Time: 17:16
  */
 
-namespace api\taobao;
+namespace iit\api\taobao;
 
 use Exception;
 use Yii;
